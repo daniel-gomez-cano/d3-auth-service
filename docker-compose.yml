@@ -1,0 +1,92 @@
+
+#  VivaEventos – Infraestructura de identidad (SUB-01)
+#  Keycloak 26 + PostgreSQL 16 dedicado
+#  Uso: docker compose --env-file .env up -d
+
+services:
+  #  Base de datos exclusiva para Keycloak
+  keycloak-db:
+    image: postgres:16-alpine
+    container_name: viva_keycloak_db
+    restart: unless-stopped
+    environment:
+      #Recuerden, esto viene del .env, PRIMERO se hace el .env luego se ejecuta el docker compose up.
+      POSTGRES_DB:       ${KC_DB_NAME}
+      POSTGRES_USER:     ${KC_DB_USER}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD}
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - keycloak-internal
+    # (Este es automático) Healthcheck para asegurar que la DB esté lista antes de que Keycloak intente conectarse
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USER} -d ${KC_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  #  Keycloak – servidor de identidad
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    container_name: viva_keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm          # Según Claude usar 'start' en producción con TLS
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
+    environment:
+      # --- Conexión a la base de datos ---
+      KC_DB:               postgres
+      KC_DB_URL:           jdbc:postgresql://keycloak-db:5432/${KC_DB_NAME}
+      KC_DB_USERNAME:      ${KC_DB_USER}
+      KC_DB_PASSWORD:      ${KC_DB_PASSWORD}
+
+      # --- Credenciales del administrador ---
+      # Recordar que esto viene del .env
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+
+      # --- Configuración del servidor ---
+      KC_HOSTNAME:         ${KC_HOSTNAME}
+      KC_HTTP_PORT:        ${KC_HTTP_PORT}
+      KC_HEALTH_ENABLED:   "true"
+      KC_METRICS_ENABLED:  "true"
+
+      # --- Log (info | debug en desarrollo) ---
+      KC_LOG_LEVEL:        ${KC_LOG_LEVEL:-info}
+
+    ports:
+      - "${KC_HTTP_PORT}:${KC_HTTP_PORT}"   # Admin + OIDC endpoints
+    volumes:
+      # Directorio para importar/exportar configuración de realms
+      - ./keycloak/realms:/opt/keycloak/data/import
+    networks:
+      - keycloak-internal
+      - viva-eventos-net
+    healthcheck:
+      test: ["CMD-SHELL",
+             "exec 3<>/dev/tcp/localhost/${KC_HTTP_PORT} && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 60s
+
+#  Volúmenes
+volumes:
+  keycloak_db_data:
+    name: viva_keycloak_db_data
+    driver: local
+
+#  Redes
+networks:
+  # Red interna — solo la DB y Keycloak se hablan aquí
+  keycloak-internal:
+    name: viva_keycloak_internal
+    driver: bridge
+    internal: true
+
+  # Red compartida — otros microservicios de VivaEventos se unen aquí
+  viva-eventos-net:
+    name: viva_eventos_net
+    driver: bridge
