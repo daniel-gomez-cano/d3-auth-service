@@ -22,9 +22,7 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
             List<String> roles = (List<String>) realmAccess.get("roles");
 
             for (String role : roles) {
-                authorities.add(
-                    new SimpleGrantedAuthority(role.toUpperCase())
-                );
+                authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
             }
         }
 
