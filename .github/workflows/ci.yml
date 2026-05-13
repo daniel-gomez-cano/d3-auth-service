@@ -22,6 +22,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Dar permisos a mvnw
+        run: chmod +x mvnw
+
       - name: Compilar proyecto
         run: ./mvnw compile -q
 
@@ -56,6 +59,9 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Dar permisos a mvnw
+        run: chmod +x mvnw
 
       - name: Build del JAR (sin tests, ya corrieron)
         run: ./mvnw package -DskipTests -q
