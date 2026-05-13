@@ -33,7 +33,7 @@ jobs:
           KC_ADMIN_PASSWORD: admin
 
       - name: Publicar reporte de tests
-        uses: dorny/tests-reporter@v1
+        uses: dorny/test-reporter@v1
         if: always()
         with:
           name: Resultados de tests
