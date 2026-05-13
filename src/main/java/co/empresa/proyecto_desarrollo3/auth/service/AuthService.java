@@ -1,9 +1,16 @@
 package co.empresa.proyecto_desarrollo3.auth.service;
 
+import co.empresa.proyecto_desarrollo3.model.Admin;
+import co.empresa.proyecto_desarrollo3.model.Client;
+import co.empresa.proyecto_desarrollo3.model.Organizer;
+import co.empresa.proyecto_desarrollo3.repository.AdminRepository;
+import co.empresa.proyecto_desarrollo3.repository.ClientRepository;
+import co.empresa.proyecto_desarrollo3.repository.OrganizerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
@@ -20,8 +27,10 @@ import static org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED;
 @Service
 public class AuthService {
 
-    @Autowired
-    private RestTemplate restTemplate;
+    @Autowired private RestTemplate restTemplate;
+    @Autowired private ClientRepository clientRepository;
+    @Autowired private OrganizerRepository organizerRepository;
+    @Autowired private AdminRepository adminRepository;
 
     @Value("${keycloak.token-url}")
     private String tokenUrl;
@@ -92,6 +101,7 @@ public class AuthService {
     }
 
     // ── REGISTER ───────────────────────────────────────────────────────────
+    @Transactional
     public void register(RegisterRequest req) {
 
         // 1. Token de admin
@@ -101,7 +111,7 @@ public class AuthService {
         authHeaders.setContentType(MediaType.APPLICATION_JSON);
         authHeaders.setBearerAuth(adminToken);
 
-        // 2. Crear usuario
+        // 2. Crear usuario en Keycloak
         Map<String, Object> userPayload = new HashMap<>();
         userPayload.put("username", req.getUsername());
         userPayload.put("email", req.getEmail());
@@ -126,18 +136,61 @@ public class AuthService {
         String location = createResp.getHeaders().getLocation().toString();
         String keycloakId = location.substring(location.lastIndexOf('/') + 1);
 
-        // 4. Obtener representación del rol
+        // 4. Asignar rol en Keycloak
         String roleUrl = keycloakServerUrl + "/admin/realms/viva-eventos/roles/" + req.getRole();
         ResponseEntity<Map> roleResp = restTemplate.exchange(
                 roleUrl, HttpMethod.GET, new HttpEntity<>(authHeaders), Map.class);
 
-        // 5. Asignar rol al usuario
         String assignUrl = keycloakServerUrl + "/admin/realms/viva-eventos/users/" + keycloakId + "/role-mappings/realm";
         restTemplate.postForEntity(
                 assignUrl, new HttpEntity<>(List.of(roleResp.getBody()), authHeaders), Void.class);
+
+        // 5. Guardar en BD local según el rol
+        // Esto permite que otros microservicios consulten datos del usuario
+        // por keycloakId sin tener que ir a Keycloak en cada request
+        guardarEnBdLocal(keycloakId, req);
     }
 
-    // ── HELPER privado ─────────────────────────────────────────────────────
+    // ── HELPERS ────────────────────────────────────────────────────────────
+
+    private void guardarEnBdLocal(String keycloakId, RegisterRequest req) {
+        switch (req.getRole().toUpperCase()) {
+            case "CLIENT" -> {
+                Client client = new Client(
+                        keycloakId,
+                        req.getEmail(),
+                        req.getFirstName(),
+                        req.getLastName()
+                );
+                clientRepository.save(client);
+            }
+            case "EVENT_CREATOR" -> {
+                // organizationName por defecto es el username hasta que lo actualice
+                Organizer organizer = new Organizer(
+                        keycloakId,
+                        req.getEmail(),
+                        req.getFirstName(),
+                        req.getLastName(),
+                        req.getUsername()
+                );
+                organizerRepository.save(organizer);
+            }
+            case "ADMIN" -> {
+                Admin admin = new Admin(
+                        keycloakId,
+                        req.getEmail(),
+                        req.getFirstName(),
+                        req.getLastName()
+                );
+                adminRepository.save(admin);
+            }
+            default -> throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Rol inválido: " + req.getRole() + ". Valores permitidos: CLIENT, EVENT_CREATOR, ADMIN"
+            );
+        }
+    }
+
     private String obtenerTokenAdmin() {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("grant_type", "password");
