@@ -155,7 +155,7 @@ public class AuthService {
 
     private void guardarEnBdLocal(String keycloakId, RegisterRequest req) {
         switch (req.getRole().toUpperCase()) {
-            case "CLIENT" -> {
+            case "ROLE_CLIENT" -> {
                 Client client = new Client(
                         keycloakId,
                         req.getEmail(),
@@ -164,7 +164,7 @@ public class AuthService {
                 );
                 clientRepository.save(client);
             }
-            case "EVENT_CREATOR" -> {
+            case "ROLE_ORGANIZER" -> {
                 // organizationName por defecto es el username hasta que lo actualice
                 Organizer organizer = new Organizer(
                         keycloakId,
@@ -175,7 +175,7 @@ public class AuthService {
                 );
                 organizerRepository.save(organizer);
             }
-            case "ADMIN" -> {
+            case "ROLE_ADMIN" -> {
                 Admin admin = new Admin(
                         keycloakId,
                         req.getEmail(),
@@ -186,7 +186,7 @@ public class AuthService {
             }
             default -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Rol inválido: " + req.getRole() + ". Valores permitidos: CLIENT, EVENT_CREATOR, ADMIN"
+                    "Rol inválido: " + req.getRole() + ". Valores permitidos: ROLE_CLIENT, ROLE_ORGANIZER, ROLE_ADMIN"
             );
         }
     }

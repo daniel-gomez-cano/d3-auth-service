@@ -65,19 +65,36 @@ services:
       - keycloak-internal
       - viva-eventos-net
     healthcheck:
-      test: ["CMD-SHELL",
-             "exec 3<>/dev/tcp/localhost/${KC_HTTP_PORT} && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
-      interval: 15s
-      timeout: 10s
-      retries: 8
-      start_period: 60s
-
+      # NO funcionan los comandos de Keycloak dentro del contenedor. Revisar por qué y cómo solucionarlo. Por ahora, no usa healthcheck
+      # Cambiamos "CMD-SHELL" por "CMD" y llamamos a /bin/bash explícitamente
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+  backend-app:
+    build: .
+    container_name: viva_backend
+    ports:
+      - "8081:8081"
+    environment:
+      - KEYCLOAK_ISSUER_URI=${KEYCLOAK_ISSUER_URI}
+      - KEYCLOAK_INTERNAL_URL=${KEYCLOAK_INTERNAL_URL}
+      - KC_ADMIN_USER=${KC_ADMIN_USER}
+      - KC_ADMIN_PASSWORD=${KC_ADMIN_PASSWORD}
+      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID}
+      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET}
+    networks:
+      - viva-eventos-net
+    depends_on:
+      keycloak:
+        # Esto debería de ser service_healthy, pero ni con service_started funciona el /register de la app.
+        condition: service_started
 #  Volúmenes
 volumes:
   keycloak_db_data:
     name: viva_keycloak_db_data
     driver: local
-
 #  Redes
 networks:
   # Red interna — solo la DB y Keycloak se hablan aquí
@@ -85,8 +102,7 @@ networks:
     name: viva_keycloak_internal
     driver: bridge
     internal: true
-
   # Red compartida — otros microservicios de VivaEventos se unen aquí
   viva-eventos-net:
-    name: viva_eventos_net
+    name: viva-eventos-net
     driver: bridge

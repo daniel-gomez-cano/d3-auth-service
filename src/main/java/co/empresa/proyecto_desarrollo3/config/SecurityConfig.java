@@ -25,7 +25,6 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(auth -> auth
-
                         // ── Públicos ─────────────────────────────────────────────
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/public/**").permitAll()
@@ -33,12 +32,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
-
                         // ── Protegidos por rol ────────────────────────────────────
                         // Nota: @PreAuthorize en cada método complementa esta capa
-                        .requestMatchers("/client/**").hasRole("CLIENT")
-                        .requestMatchers("/creator/**").hasRole("EVENT_CREATOR")
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/client/**").hasRole("ROLE_CLIENT")
+                        .requestMatchers("/creator/**").hasRole("ROLE_ORGANIZER")
+                        .requestMatchers("/admin/**").hasRole("ROLE_ADMIN")
 
                         // Todo lo demás requiere estar autenticado
                         .anyRequest().authenticated()
