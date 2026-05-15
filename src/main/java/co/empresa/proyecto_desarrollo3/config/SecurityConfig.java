@@ -34,9 +34,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                         // ── Protegidos por rol ────────────────────────────────────
                         // Nota: @PreAuthorize en cada método complementa esta capa
-                        .requestMatchers("/client/**").hasRole("ROLE_CLIENT")
-                        .requestMatchers("/creator/**").hasRole("ROLE_ORGANIZER")
-                        .requestMatchers("/admin/**").hasRole("ROLE_ADMIN")
+                        .requestMatchers("/client/**").hasRole("CLIENT")
+                        .requestMatchers("/creator/**").hasRole("ORGANIZER")
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         // Todo lo demás requiere estar autenticado
                         .anyRequest().authenticated()
