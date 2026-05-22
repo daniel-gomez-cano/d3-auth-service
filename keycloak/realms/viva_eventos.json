@@ -51,7 +51,7 @@
     "realm": [
       {
         "id": "a83ff006-76ab-4596-90d1-36b4783ca0b4",
-        "name": "ROLE_CLIENT",
+        "name": "CLIENT",
         "description": "client",
         "composite": false,
         "clientRole": false,
@@ -99,7 +99,7 @@
       },
       {
         "id": "76b1c296-9195-453f-ba41-7e9a3405601d",
-        "name": "ROLE_ADMIN",
+        "name": "ADMIN",
         "description": "admin",
         "composite": false,
         "clientRole": false,
@@ -108,7 +108,7 @@
       },
       {
         "id": "802f6639-1644-494e-8e2f-90d797188dbb",
-        "name": "ROLE_EVENT_CREATOR",
+        "name": "EVENT_CREATOR",
         "description": "event_creator",
         "composite": false,
         "clientRole": false,
