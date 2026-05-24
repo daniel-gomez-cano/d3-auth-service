@@ -35,7 +35,7 @@ public class SecurityConfig {
                         // ── Protegidos por rol ────────────────────────────────────
                         // Nota: @PreAuthorize en cada método complementa esta capa
                         .requestMatchers("/client/**").hasRole("CLIENT")
-                        .requestMatchers("/creator/**").hasRole("EVENT_CREATOR")
+                        .requestMatchers("/creator/**").hasRole("ORGANIZER")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
                         // Todo lo demás requiere estar autenticado

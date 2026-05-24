@@ -49,10 +49,10 @@ class EndpointRolesTest {
     }
 
     @Test
-    @DisplayName("GET /client/secure-method — EVENT_CREATOR recibe 403")
+    @DisplayName("GET /client/secure-method — ORGANIZER recibe 403")
     void clientEndpointConRolIncorrecto() throws Exception {
         mockMvc.perform(get("/client/secure-method")
-                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EVENT_CREATOR"))))
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ORGANIZER"))))
                 .andExpect(status().isForbidden());
     }
 
@@ -67,22 +67,22 @@ class EndpointRolesTest {
     // ── /creator/** ────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("GET /creator/event/{id} — EVENT_CREATOR con su propio ID puede acceder")
+    @DisplayName("GET /creator/event/{id} — ORGANIZER con su propio ID puede acceder")
     void creatorConRolCorrecto() throws Exception {
         String organizerId = "uuid-123";
         mockMvc.perform(get("/creator/event/" + organizerId)
                         .with(jwt()
-                                .authorities(new SimpleGrantedAuthority("ROLE_EVENT_CREATOR"))
+                                .authorities(new SimpleGrantedAuthority("ROLE_ORGANIZER"))
                                 .jwt(token -> token.subject(organizerId))))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @DisplayName("GET /creator/event/{id} — EVENT_CREATOR con ID ajeno recibe 403")
+    @DisplayName("GET /creator/event/{id} — ORGANIZER con ID ajeno recibe 403")
     void creatorConIdAjeno() throws Exception {
         mockMvc.perform(get("/creator/event/otro-uuid")
                         .with(jwt()
-                                .authorities(new SimpleGrantedAuthority("ROLE_EVENT_CREATOR"))
+                                .authorities(new SimpleGrantedAuthority("ROLE_ORGANIZER"))
                                 .jwt(token -> token.subject("mi-uuid"))))
                 .andExpect(status().isForbidden());
     }
@@ -121,10 +121,10 @@ class EndpointRolesTest {
     }
 
     @Test
-    @DisplayName("GET /admin/test — EVENT_CREATOR recibe 403")
+    @DisplayName("GET /admin/test — ORGANIZER recibe 403")
     void adminConRolCreator() throws Exception {
         mockMvc.perform(get("/admin/test")
-                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_EVENT_CREATOR"))))
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ORGANIZER"))))
                 .andExpect(status().isForbidden());
     }
 
