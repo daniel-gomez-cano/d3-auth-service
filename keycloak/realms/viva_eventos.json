@@ -108,8 +108,8 @@
       },
       {
         "id": "802f6639-1644-494e-8e2f-90d797188dbb",
-        "name": "EVENT_CREATOR",
-        "description": "event_creator",
+        "name": "ORGANIZER",
+        "description": "organizer",
         "composite": false,
         "clientRole": false,
         "containerId": "3996bbad-ed19-417a-9695-38b828ff0f13",

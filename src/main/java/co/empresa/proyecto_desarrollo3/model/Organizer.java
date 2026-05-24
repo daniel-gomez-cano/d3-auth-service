@@ -23,14 +23,14 @@ public class Organizer extends User {
 
     public Organizer(String keycloakId, String email, String firstName,
                      String lastName, String organizationName) {
-        super(keycloakId, email, firstName, lastName, RoleType.ROLE_EVENT_CREATOR);
+        super(keycloakId, email, firstName, lastName, RoleType.ROLE_ORGANIZER);
         this.organizationName = organizationName;
         this.verified = false;
     }
 
     public Organizer(String keycloakId, String email, String firstName, String lastName,
                      String organizationName, String contactPhone) {
-        super(keycloakId, email, firstName, lastName, RoleType.ROLE_EVENT_CREATOR);
+        super(keycloakId, email, firstName, lastName, RoleType.ROLE_ORGANIZER);
         this.organizationName = organizationName;
         this.contactPhone = contactPhone;
         this.verified = false;
