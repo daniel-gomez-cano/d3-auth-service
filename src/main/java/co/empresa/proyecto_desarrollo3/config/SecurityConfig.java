@@ -32,6 +32,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
+
+                        .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers("/actuator/info").permitAll()
+
                         // ── Protegidos por rol ────────────────────────────────────
                         // Nota: @PreAuthorize en cada método complementa esta capa
                         .requestMatchers("/client/**").hasRole("CLIENT")
