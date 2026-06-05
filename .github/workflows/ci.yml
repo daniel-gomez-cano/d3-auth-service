@@ -82,7 +82,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: false
-          tags: auth-service:${{ github.sha }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/d3-auth-service:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
