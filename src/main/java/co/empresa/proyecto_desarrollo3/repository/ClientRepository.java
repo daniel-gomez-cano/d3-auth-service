@@ -17,4 +17,6 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
     List<Client> findByActiveTrue();
 
     boolean existsByDocumentId(String documentId);
+
+    boolean existsByKeycloakId(String keycloakId);
 }

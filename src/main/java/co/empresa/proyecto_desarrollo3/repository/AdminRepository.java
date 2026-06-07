@@ -17,5 +17,7 @@ public interface AdminRepository extends JpaRepository<Admin, Long> {
     List<Admin> findBySuperAdminTrue();
 
     List<Admin> findByActiveTrue();
+
+    boolean existsByKeycloakId(String keycloakId);
 }
 
