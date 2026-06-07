@@ -136,8 +136,13 @@ public class AuthService {
         String location = createResp.getHeaders().getLocation().toString();
         String keycloakId = location.substring(location.lastIndexOf('/') + 1);
 
-        // 4. Asignar rol en Keycloak
-        String roleUrl = keycloakServerUrl + "/admin/realms/viva-eventos/roles/" + req.getRole();
+        // ── ANTES del step 4, agrega esto:
+// Normalizar: el switch usa "ROLE_X", Keycloak usa "X"
+        String keycloakRoleName = req.getRole().toUpperCase().replace("ROLE_", "");
+        String roleForSwitch = "ROLE_" + keycloakRoleName;
+
+// Step 4 — CAMBIA req.getRole() por keycloakRoleName
+        String roleUrl = keycloakServerUrl + "/admin/realms/viva-eventos/roles/" + keycloakRoleName;
         ResponseEntity<Map> roleResp = restTemplate.exchange(
                 roleUrl, HttpMethod.GET, new HttpEntity<>(authHeaders), Map.class);
 
@@ -148,13 +153,13 @@ public class AuthService {
         // 5. Guardar en BD local según el rol
         // Esto permite que otros microservicios consulten datos del usuario
         // por keycloakId sin tener que ir a Keycloak en cada request
-        guardarEnBdLocal(keycloakId, req);
+        guardarEnBdLocal(keycloakId, req, roleForSwitch);
     }
 
     // ── HELPERS ────────────────────────────────────────────────────────────
 
-    private void guardarEnBdLocal(String keycloakId, RegisterRequest req) {
-        switch (req.getRole().toUpperCase()) {
+    private void guardarEnBdLocal(String keycloakId, RegisterRequest req, String roleForSwitch) {
+        switch (roleForSwitch) {
             case "ROLE_CLIENT" -> {
                 Client client = new Client(
                         keycloakId,
