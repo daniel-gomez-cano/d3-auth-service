@@ -19,5 +19,7 @@ public interface OrganizerRepository extends JpaRepository<Organizer, Long> {
     List<Organizer> findByActiveTrue();
 
     List<Organizer> findByVerifiedTrueAndActiveTrue();
+
+    boolean existsByKeycloakId(String keycloakId);
 }
 

@@ -104,56 +104,64 @@ public class AuthService {
     @Transactional
     public void register(RegisterRequest req) {
 
-        // 1. Token de admin
-        String adminToken = obtenerTokenAdmin();
+        // Normalizar el nombre del rol:
+        // Keycloak usa "ORGANIZER", el switch usa "ROLE_ORGANIZER"
+        String keycloakRoleName = req.getRole().toUpperCase().replace("ROLE_", "");
+        String localRoleKey = "ROLE_" + keycloakRoleName;
 
+        String adminToken = obtenerTokenAdmin();
         HttpHeaders authHeaders = new HttpHeaders();
         authHeaders.setContentType(MediaType.APPLICATION_JSON);
         authHeaders.setBearerAuth(adminToken);
 
-        // 2. Crear usuario en Keycloak
-        Map<String, Object> userPayload = new HashMap<>();
-        userPayload.put("username", req.getUsername());
-        userPayload.put("email", req.getEmail());
-        userPayload.put("firstName", req.getFirstName());
-        userPayload.put("lastName", req.getLastName());
-        userPayload.put("enabled", true);
-        userPayload.put("credentials", List.of(Map.of(
-                "type", "password",
-                "value", req.getPassword(),
-                "temporary", false
-        )));
+        // ── Paso 1: Crear o recuperar el usuario en Keycloak ──────────
+        String keycloakId;
+        try {
+            Map<String, Object> userPayload = new HashMap<>();
+            userPayload.put("username", req.getUsername());
+            userPayload.put("email", req.getEmail());
+            userPayload.put("firstName", req.getFirstName());
+            userPayload.put("lastName", req.getLastName());
+            userPayload.put("enabled", true);
+            userPayload.put("credentials", List.of(Map.of(
+                    "type", "password",
+                    "value", req.getPassword(),
+                    "temporary", false
+            )));
 
-        String usersUrl = keycloakServerUrl + "/admin/realms/viva-eventos/users";
-        ResponseEntity<Void> createResp = restTemplate.postForEntity(
-                usersUrl, new HttpEntity<>(userPayload, authHeaders), Void.class);
+            String usersUrl = keycloakServerUrl + "/admin/realms/viva-eventos/users";
+            ResponseEntity<Void> createResp = restTemplate.postForEntity(
+                    usersUrl, new HttpEntity<>(userPayload, authHeaders), Void.class);
 
-        if (createResp.getStatusCode() != HttpStatus.CREATED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se pudo crear el usuario en Keycloak");
+            String location = createResp.getHeaders().getLocation().toString();
+            keycloakId = location.substring(location.lastIndexOf('/') + 1);
+
+        } catch (HttpClientErrorException.Conflict ex) {
+            // Usuario ya existe en Keycloak → recuperar su ID por username
+            keycloakId = buscarKeycloakIdPorUsername(req.getUsername(), authHeaders);
         }
 
-        // 3. Extraer keycloakId del header Location
-        String location = createResp.getHeaders().getLocation().toString();
-        String keycloakId = location.substring(location.lastIndexOf('/') + 1);
+        // ── Paso 2: Asignar rol (idempotente — ignora si ya está asignado) ─
+        try {
+            String roleUrl = keycloakServerUrl
+                    + "/admin/realms/viva-eventos/roles/" + keycloakRoleName;
+            ResponseEntity<Map> roleResp = restTemplate.exchange(
+                    roleUrl, HttpMethod.GET, new HttpEntity<>(authHeaders), Map.class);
 
-        // ── ANTES del step 4, agrega esto:
-// Normalizar: el switch usa "ROLE_X", Keycloak usa "X"
-        String keycloakRoleName = req.getRole().toUpperCase().replace("ROLE_", "");
-        String roleForSwitch = "ROLE_" + keycloakRoleName;
+            String assignUrl = keycloakServerUrl
+                    + "/admin/realms/viva-eventos/users/" + keycloakId + "/role-mappings/realm";
+            restTemplate.postForEntity(
+                    assignUrl,
+                    new HttpEntity<>(List.of(roleResp.getBody()), authHeaders),
+                    Void.class);
 
-// Step 4 — CAMBIA req.getRole() por keycloakRoleName
-        String roleUrl = keycloakServerUrl + "/admin/realms/viva-eventos/roles/" + keycloakRoleName;
-        ResponseEntity<Map> roleResp = restTemplate.exchange(
-                roleUrl, HttpMethod.GET, new HttpEntity<>(authHeaders), Map.class);
+        } catch (HttpClientErrorException ex) {
+            // El rol ya estaba asignado o no existe → loguear y continuar
+            // No lanzamos excepción: si el usuario ya tiene el rol, está bien
+        }
 
-        String assignUrl = keycloakServerUrl + "/admin/realms/viva-eventos/users/" + keycloakId + "/role-mappings/realm";
-        restTemplate.postForEntity(
-                assignUrl, new HttpEntity<>(List.of(roleResp.getBody()), authHeaders), Void.class);
-
-        // 5. Guardar en BD local según el rol
-        // Esto permite que otros microservicios consulten datos del usuario
-        // por keycloakId sin tener que ir a Keycloak en cada request
-        guardarEnBdLocal(keycloakId, req, roleForSwitch);
+        // ── Paso 3: Guardar en BD local (idempotente) ──────────────────
+        guardarEnBdLocalIdempotente(keycloakId, req, localRoleKey);
     }
 
     // ── HELPERS ────────────────────────────────────────────────────────────
@@ -211,5 +219,46 @@ public class AuthService {
                 adminTokenUrl, new HttpEntity<>(params, headers), Map.class);
 
         return (String) response.getBody().get("access_token");
+    }
+
+    private String buscarKeycloakIdPorUsername(String username, HttpHeaders authHeaders) {
+        String searchUrl = keycloakServerUrl
+                + "/admin/realms/viva-eventos/users?username=" + username + "&exact=true";
+
+        ResponseEntity<List> resp = restTemplate.exchange(
+                searchUrl, HttpMethod.GET, new HttpEntity<>(authHeaders), List.class);
+
+        List<Map<String, Object>> users = resp.getBody();
+        if (users == null || users.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No se encontró el usuario en Keycloak: " + username);
+        }
+        return (String) users.get(0).get("id");
+    }
+    private void guardarEnBdLocalIdempotente(String keycloakId, RegisterRequest req, String localRoleKey) {
+        switch (localRoleKey) {
+            case "ROLE_CLIENT" -> {
+                if (!clientRepository.existsByKeycloakId(keycloakId)) {
+                    clientRepository.save(new Client(
+                            keycloakId, req.getEmail(), req.getFirstName(), req.getLastName()));
+                }
+            }
+            case "ROLE_ORGANIZER" -> {
+                if (!organizerRepository.existsByKeycloakId(keycloakId)) {
+                    organizerRepository.save(new Organizer(
+                            keycloakId, req.getEmail(), req.getFirstName(),
+                            req.getLastName(), req.getUsername()));
+                }
+            }
+            case "ROLE_ADMIN" -> {
+                if (!adminRepository.existsByKeycloakId(keycloakId)) {
+                    adminRepository.save(new Admin(
+                            keycloakId, req.getEmail(), req.getFirstName(), req.getLastName()));
+                }
+            }
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Rol inválido: " + req.getRole()
+                            + ". Valores permitidos: CLIENT, ORGANIZER, ADMIN (con o sin prefijo ROLE_)");
+        }
     }
 }
