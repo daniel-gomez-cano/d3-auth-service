@@ -28,6 +28,7 @@ public class SecurityConfig {
                         // ── Públicos ─────────────────────────────────────────────
                         .requestMatchers("/").permitAll()
                         .requestMatchers("/public/**").permitAll()
+                        .requestMatchers("/test/public").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
