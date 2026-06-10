@@ -27,6 +27,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ── Públicos ─────────────────────────────────────────────
                         .requestMatchers("/").permitAll()
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/public/**").permitAll()
                         .requestMatchers("/test/public").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
