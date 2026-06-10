@@ -90,9 +90,7 @@ jobs:
       - name: Ejecutar análisis SonarCloud
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./mvnw sonar:sonar \
-          -Dsonar.projectKey=daniel-gomez-cano_d3-auth-service \
-          -Dsonar.organization=daniel-gomez-cano
+        run: ./mvnw compile sonar:sonar -Dsonar.projectKey=daniel-gomez-cano_d3-auth-service -Dsonar.organization=daniel-gomez-cano
 
 
   docker:
